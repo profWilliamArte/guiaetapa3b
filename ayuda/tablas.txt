@@ -1,0 +1,497 @@
+ 1. Filtrado y Búsqueda
+    Permite al usuario buscar o filtrar productos por:
+
+    Categoría
+
+    Marca
+
+    Nombre (búsqueda en texto)
+
+    Paso 1: Crear el estado para el término de búsqueda
+
+        const [searchTerm, setSearchTerm] = useState('');
+
+    Paso 2: Reiniciar la página a 1 al cambiar la búsqueda
+        Esto asegura que la paginación vuelva a la primera página cuando se realice un nuevo filtro.
+
+        useEffect(() => {
+            setCurrentPage(1);
+        }, [searchTerm]);
+  
+    Paso 3: Filtrar los datos según el término de búsqueda
+        Crea un nuevo arreglo que filtre los productos por nombre, marca o categoría, sin importar mayúsculas o minúsculas.
+
+        const filteredData = datos.filter(item =>
+            item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            item.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            item.category.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+    Paso 4: Crear el campo input vinculado al estado
+        El usuario podrá escribir para buscar, y el estado se actualizará automáticamente.
+
+    <input
+        type="text"
+        className="form-control mb-3"
+        placeholder="Buscar por nombre, marca o categoría..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+
+    Nota final:
+    En lugar de mostrar datos, mapea y muestra filteredData para que el listado muestre sólo los productos que coinciden con la búsqueda.
+
+
+///////////////////////////////////////////////////////////////////////////////////////////
+
+
+ 2. Ordenamiento (Sorting)
+    Permite ordenar la tabla según la columna que el usuario elija (ejemplo: Precio, Nombre, Stock).
+
+    Paso 1: Importar los iconos
+
+        import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
+
+    Paso 2: Crear el estado para el orden
+
+        const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+   Paso 3: Función para cambiar el orden al hacer clic en un encabezado
+        La función recibe la clave (propiedad) por la que ordenar y alterna la dirección (ascendente/descendente).
+
+        const handleSort = (key) => {
+            let direction = 'asc';
+            if (sortConfig.key === key && sortConfig.direction === 'asc') {
+                direction = 'desc';
+            }
+            setSortConfig({ key, direction });
+        };
+
+   Paso 4: Ordenar la lista filtrada
+        Se usa useMemo para optimizar, evitando reordenar en cada render.
+        Se crea una copia con [...] para no modificar el arreglo original.
+        Se usa .sort() con lógica para strings (mayúsculas/minúsculas y números) y valores numéricos.
+        Se devuelve la lista ordenada.
+
+        const sortedData = useMemo(() => {
+            if (!sortConfig.key) return filteredData;
+
+            return [...filteredData].sort((a, b) => {
+                const aValue = a[sortConfig.key];
+                const bValue = b[sortConfig.key];
+
+                if (aValue === bValue) return 0;
+
+                if (typeof aValue === 'string' && typeof bValue === 'string') {
+                    return sortConfig.direction === 'asc'
+                        ? aValue.localeCompare(bValue, 'es', { numeric: true })
+                        : bValue.localeCompare(aValue, 'es', { numeric: true });
+                }
+
+                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }, [filteredData, sortConfig]);
+
+    Paso 5: Agregar iconos y eventos a los encabezados de tabla
+            Ejemplo para la columna "Precio":
+
+        <th scope="col" style={{ cursor: 'pointer' }} onClick={() => handleSort('price')}>
+            Precio
+            {sortConfig.key === 'price' ? (
+                sortConfig.direction === 'asc' ? <FaSortUp className="ms-1" /> : <FaSortDown className="ms-1" />
+            ) : (
+                <FaSort className="ms-1 text-muted" />
+            )}
+        </th>
+
+        (Opcional) Aplicar a otras columnas ordenables
+        Si decides hacer ordenable otra columna (ej. Stock), haz lo mismo:
+
+        <th scope="col" style={{ cursor: 'pointer' }} onClick={() => handleSort('stock')}>
+            Stock
+            {sortConfig.key === 'stock' ? (
+                sortConfig.direction === 'asc' ? <FaSortUp className="ms-1" /> : <FaSortDown className="ms-1" />
+            ) : (
+                <FaSort className="ms-1 text-muted" />
+            )}
+        </th>
+
+
+
+    ¿Cómo funciona todo junto?
+        El usuario hace clic en un encabezado.
+        Se ejecuta handleSort cambiando el estado sortConfig.
+        useMemo detecta el cambio y recalcula sortedData.
+        La tabla se muestra usando sortedData.map(...).
+        Se refleja el nuevo orden visualmente y con los iconos que indican dirección.
+
+        Este flujo mantiene ordenada y reactiva la lista con poco código y buen rendimiento. 
+
+
+////////////////////////////////////////////////////////////////////////////////////////
+    
+3. Resumen o Totales Globales usando reduce
+    Permite mostrar sumas importantes al final de la tabla, como el total de stock y el valor total del inventario.
+
+    Paso 1: Calcular totales sobre los datos filtrados
+        Usamos el método reduce para acumular valores numéricos, asegurándonos de convertir las propiedades a número con Number().
+        
+        // Total de unidades en stock en los productos filtrados
+        const totalStock = filteredData.reduce((sum, item) => sum + Number(item.stock), 0);
+        // Valor total del inventario: precio * stock para cada producto
+        const totalInventoryValue = filteredData.reduce((sum, item) => sum + Number(item.price) * Number(item.stock),0);
+
+    Paso 2: Mostrar los totales en el pie de la tabla (tfoot)
+        Se agregan filas al pie con los totales, usando funciones para dar formato legible (números y moneda).
+
+    <tfoot>
+        <tr className="table-light text-dark">
+            <td colSpan="6" className="text-end fw-bold">Valor Total del Inventario:</td>
+            <td className="text-center fw-bold">{formatNumber(totalStock)}</td>
+            <td className="text-end fw-bold">{formatCurrency(totalInventoryValue)}</td>
+        </tr>
+    </tfoot>
+
+//////////////////////////////////////////////////////////////////////
+
+4. Paginación
+    Permite mostrar la lista dividida en páginas para mejorar la usabilidad y rendimiento.
+
+    Paso 1: Crear estados y variables básicas
+
+        const [currentPage, setCurrentPage] = useState(1);
+        const itemsPerPage = 10; // Puedes cambiarlo a 20, 25, etc.
+
+    Paso 2: Calcular el total de páginas
+        Se calcula cuántas páginas existen dividiendo el total de elementos entre los ítems por página, 
+        usando Math.ceil para redondear hacia arriba.
+
+        const totalPages = Math.ceil(sortedData.length / itemsPerPage);
+
+    Paso 3: Funciones para cambiar de página
+        Permiten cambiar la página actual desde botones o navegación.
+
+        const goToPage = (page) => {
+            if (page >= 1 && page <= totalPages) {
+                setCurrentPage(page);
+            }
+        };
+        const nextPage = () => {
+            if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+        };
+        const prevPage = () => {
+            if (currentPage > 1) setCurrentPage(currentPage - 1);
+        };
+
+
+    Paso 4: Generar los números de páginas para mostrar
+        Para no saturar la barra con todos los números, se muestran pocos botones alrededor del actual 
+        y se agregan puntos suspensivos cuando hay saltos.
+
+
+        const getPageNumbers = () => {
+            const delta = 2; // Cuántos botones a cada lado de la página actual
+            const range = [];
+            const rangeWithDots = [];
+
+            for (let i = Math.max(1, currentPage - delta); i <= Math.min(totalPages, currentPage + delta); i++) {
+                range.push(i);
+            }
+
+            if (range[0] > 1) {
+                rangeWithDots.push(1);
+                if (range[0] > 2) rangeWithDots.push('...');
+            }
+
+            rangeWithDots.push(...range);
+
+            if (range[range.length - 1] < totalPages) {
+                if (range[range.length - 1] < totalPages - 1) rangeWithDots.push('...');
+                rangeWithDots.push(totalPages);
+            }
+
+            return rangeWithDots;
+        };
+
+
+    Paso 5: Crear la barra de paginación
+        Se muestra la navegación con botones para ir a la primera, anterior, números intermedios, siguiente y última página. 
+        Se deshabilitan botones cuando no son aplicables y se marca la página actual.  
+
+        <div className="d-flex justify-content-between">
+            <nav>
+                <ul className="pagination">
+                    <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                        <button className="page-link" onClick={() => goToPage(1)} disabled={currentPage === 1}>
+                            <FaAngleDoubleLeft />
+                        </button>
+                    </li>
+                    <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                        <button className="page-link" onClick={prevPage} disabled={currentPage === 1}>
+                            <FaAngleLeft />
+                        </button>
+                    </li>
+                    {getPageNumbers().map((pageNum, index) => (
+                        <li
+                            key={index}
+                            className={`page-item ${pageNum === currentPage ? 'active' : ''} ${pageNum === '...' ? 'disabled' : ''}`}
+                        >
+                            {pageNum === '...' ? (
+                                <span className="page-link">...</span>
+                                ) : (
+                                    <button
+                                        className="page-link"
+                                            onClick={() => goToPage(pageNum)}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                )}
+                        </li>
+                    ))}
+
+                    <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                        <button className="page-link" onClick={nextPage} disabled={currentPage === totalPages}>
+                            <FaAngleRight />
+                        </button>
+                    </li>
+                    <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                        <button
+                            className="page-link"
+                            onClick={() => goToPage(totalPages)}
+                            disabled={currentPage === totalPages}
+                            >
+                                <FaAngleDoubleRight />
+                        </button>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+
+///////////////////////////////////////////////////////////////////////////////////////////
+
+5. Modal y Detalle
+   Permite mostrar más información de un producto en un modal desplegable cuando el usuario da clic en un botón.
+
+    Paso 1: Añadir botones de acciones en la fila de la tabla
+        Incluye un botón para ir a la página de detalle y otro para abrir el modal:
+
+    <td className="text-center">
+        <Link to={`/detalle/${item.id}/${item.title}`} href="#"
+            className="btn btn-sm btn-outline-primary me-2"
+            title="Ver detalle"
+        >
+            <FaEye />
+        </Link>
+        <button
+            className="btn btn-sm btn-outline-secondary"
+            title="Más información"
+            data-bs-toggle="modal"
+            data-bs-target={`#modal-${item.id}`}
+        >
+            <FaInfoCircle />
+        </button>
+    </td>
+
+    Paso 2: Usar fragmentos para envolver fila y modal
+        Debes envolver el <tr> y el componente del modal en un fragmento <></>
+        para poder devolver elementos hermanos sin un contenedor extra.
+
+        <>
+            <tr key={item.id}>
+                {/* ...celdas de la fila... */}
+            </tr>
+
+            <ModalProd item={item} />
+        </>
+
+    
+
+//////////////////////////////////////////////////////////////////////////////////
+
+6. Select dinámico con categorías únicas.
+    Permite filtrar los productos por categorías disponibles dinámicamente sin repetir.
+
+    Paso 1: Crear estado para categoría seleccionada
+
+        const [selectedCategory, setSelectedCategory] = useState(''); 
+    
+   Paso 2: Obtener las categorías únicas usando useMem
+
+        const categories = useMemo(() => {
+            const cats = datos.map(item => item.category);
+            return ['Todas', ...new Set(cats)].sort(); // 'Todas' al inicio
+        }, [datos]);
+
+    Paso 3: Actualizar el filtro para que incluya la categoría
+        Filtra los productos que coincidan con el término de búsqueda y con la categoría seleccionada.
+
+        const filteredData = useMemo(() => {
+            return datos.filter(item => {
+                const matchesSearch = 
+                (item.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                (item.brand?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                (item.category?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+
+                const matchesCategory = selectedCategory === '' || selectedCategory === 'Todas' || item.category === selectedCategory;
+
+                return matchesSearch && matchesCategory;
+            });
+        }, [datos, searchTerm, selectedCategory]);
+    
+    Paso 4: Reiniciar página y búsqueda al cambiar categoría (ya hecho en el paso 1)
+
+        useEffect(() => {
+            setCurrentPage(1);
+        }, [selectedCategory, searchTerm]); // Reinicia al cambiar filtro o búsqueda
+
+
+    Paso 5: Generar resumen por categorías basado en filteredData
+        Esto agrupa los productos filtrados por categoría con totales.
+
+        const categorySummary = useMemo(() => {
+            const summary = {};
+
+            filteredData.forEach(item => {
+                if (!summary[item.category]) {
+                summary[item.category] = {
+                    category: item.category,
+                    productCount: 0,
+                    totalStock: 0,
+                    totalValue: 0
+                };
+                }
+                summary[item.category].productCount += 1;
+                summary[item.category].totalStock += Number(item.stock);
+                summary[item.category].totalValue += Number(item.price) * Number(item.stock);
+            });
+
+        return Object.values(summary).sort((a, b) => a.category.localeCompare(b.category));
+        }, [filteredData]);
+
+    Paso 6: Crear el <select> en el JSX junto al input de búsqueda
+            Colócalo junto al input de búsqueda (en tu div.row):
+
+        <div className="col-md-4">
+            <select
+                className="form-select"
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+            >
+                {categories.map((cat, index) => (
+                <option key={index} value={cat === 'Todas' ? '' : cat}>
+                    {cat}
+                </option>
+                ))}
+            </select>
+        </div>
+
+/////////////////////////////////////////////////////////////////////////////////
+
+7. Modal: Resumen por Categoría (SIN FILTROS)
+    Muestra un resumen global de productos agrupados por categoría en un modal, sin afectar los filtros o búsqueda activos.
+
+    // Paso 1 y actualización de categorySummary con porcentaje
+
+        const categorySummary = useMemo(() => {
+            const summary = {};
+            datos.forEach(item => {
+                if (!summary[item.category]) {
+                    summary[item.category] = {
+                        category: item.category,
+                        productCount: 0,
+                        totalStock: 0,
+                        totalValue: 0,
+                        percent: 0
+                    };
+                }
+                summary[item.category].productCount += 1;
+                summary[item.category].totalStock += Number(item.stock);
+                summary[item.category].totalValue += Number(item.price) * Number(item.stock);
+            });
+
+            const totalValue = Object.values(summary).reduce((acc, cat) => acc + cat.totalValue, 0);
+
+            Object.values(summary).forEach(cat => {
+                cat.percent = (cat.totalValue / totalValue) * 100;
+            });
+
+            return Object.values(summary).sort((a, b) => a.category.localeCompare(b.category));
+        }, [datos]); // 👈 ¡Depende de `datos`, no de `filteredData`!
+
+     Paso 2: Calcular totales globales para el pie del modal
+
+            const globalTotals = useMemo(() => {
+                return datos.reduce((acc, item) => {
+                    acc.productCount += 1;
+                    acc.totalStock += Number(item.stock);
+                    acc.totalValue += Number(item.price) * Number(item.stock);
+                    return acc;
+                }, { productCount: 0, totalStock: 0, totalValue: 0 });
+            }, [datos]);
+
+
+    PPaso 3: Botón que activa el modal
+
+            <div className="text-end my-3">
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal">
+                    Total por Categorias
+                </button>
+            </div>
+
+    Paso 4: Modal en el JSX
+            <div className="modal fade" id="exampleModal" tabIndex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                <div className="modal-dialog modal-lg">
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h1 className="modal-title fs-5" id="exampleModalLabel">Total por Categorias</h1>
+                            <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div className="modal-body">
+
+                            <table className="table table-sm table-bordered">
+                                <thead className="table-light">
+                                    <tr>
+                                        <th>Categoría</th>
+                                        <th className="text-center">Productos</th>
+                                        <th className="text-center">Stock Total</th>
+                                        <th className="text-end">Valor del Inventario</th>
+                                        <th className="text-end">%</th> {/* Nueva columna */}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {categorySummary.map((cat, index) => (
+                                        <tr key={index}>
+                                            <td><strong>{cat.category}</strong></td>
+                                            <td className="text-center">{cat.productCount}</td>
+                                            <td className="text-center">{formatNumber(cat.totalStock)}</td>
+                                            <td className="text-end">{formatCurrency(cat.totalValue)}</td>
+                                            <td className="text-end">{cat.percent.toFixed(2)}%</td> {/* Muestra porcentaje */}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot className="table-light fw-bold">
+                                    <tr>
+                                        <td>Total General</td>
+                                        <td className="text-center">{globalTotals.productCount}</td>
+                                        <td className="text-center">{formatNumber(globalTotals.totalStock)}</td>
+                                        <td className="text-end">{formatCurrency(globalTotals.totalValue)}</td>
+                                        <td></td> {/* Columna % vacía para total */}
+                                    </tr>
+                                </tfoot>
+                            </table>
+
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+           Con este modal, los usuarios podrán ver no solo los totales absolutos por categoría, 
+           sino también qué porcentaje del inventario total representa cada una, 
+           lo que aporta contexto y facilita la interpretación de los datos.
+    
