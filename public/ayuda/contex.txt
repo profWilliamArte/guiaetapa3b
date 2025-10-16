@@ -1,0 +1,149 @@
+Paso 1: Crear el contexto del carrito
+
+Este archivo introduce React Context API, una herramienta esencial para gestionar estado global en aplicaciones React. En lugar de pasar el carrito y sus funciones manualmente entre componentes (lo que genera prop drilling), el contexto permite que cualquier componente acceda directamente al estado del carrito de forma limpia y eficiente. Aunque la lógica del carrito (agregar, eliminar, persistencia, etc.) ya fue implementada en la Etapa 3.1, ahora se reorganiza dentro de un sistema centralizado que mejora la escalabilidad y mantenibilidad del código.
+
+Crea una nueva carpeta: src/context/
+Dentro, crea el archivo: CarritoContext.jsx
+
+Este archivo introduce React Context API, una herramienta poderosa de React para compartir estado y funciones entre muchos componentes sin tener que pasar props manualmente (lo que se conoce como prop drilling).
+
+Aunque las funciones del carrito (agregar, eliminar, etc.) ya las conocemos, la forma en que se organizan y se ponen a disposición de toda la app es completamente nueva.
+
+ 1. createContext(): Creamos un "canal" de comunicación
+    
+    const CarritoContext = createContext();
+
+    Esto crea un contexto vacío llamado CarritoContext.
+
+    Piensa en el contexto como un canal de televisión: cualquier componente que "sintonice" este canal podrá recibir los datos que se emiten.
+
+
+ 2. useCarrito(): Un hook personalizado para acceder al contexto
+
+    export const useCarrito = () => {
+    const context = useContext(CarritoContext);
+    if (!context) {
+        throw new Error('useCarrito debe usarse dentro de un CarritoProvider');
+    }
+    return context;
+    };
+
+    Este es un hook personalizado que envuelve useContext(CarritoContext).
+
+    Ventajas:
+    Evita tener que importar useContext y CarritoContext en cada componente.
+    Agrega una validación de seguridad: si alguien usa useCarrito() fuera del proveedor, lanza un error claro.
+    Es como crear un "acceso directo" al carrito.
+
+ 3. CarritoProvider: El "emisor" del canal
+
+    export const CarritoProvider = ({ children }) => {
+        // ... estado y funciones del carrito
+
+        return (
+            <CarritoContext.Provider value={{ carrito, agregarAlCarrito, ... }}>
+            {children}
+            </CarritoContext.Provider>
+        );
+    };
+
+    Este componente envuelve toda la aplicación (en App.jsx).
+    El value es lo que se "emite" por el canal: todo el estado y todas las funciones del carrito.
+    Cualquier componente dentro de {children} podrá acceder a ese value usando useCarrito().
+
+💡 Analogía: 
+    CarritoProvider = la antena que transmite la señal.
+    useCarrito() = el televisor que recibe la señal.
+    Sin antena, no hay señal. Sin televisor, no ves nada.
+
+
+ 4. Persistencia con localStorage dentro del proveedor
+
+    const [carrito, setCarrito] = useState(getInitialCart);
+
+    useEffect(() => {
+    localStorage.setItem('carrito', JSON.stringify(carrito));
+    }, [carrito]);
+
+    La lógica de localStorage se mantiene igual que en la Etapa 3.1, pero ahora vive dentro del contexto.
+    Esto significa que el estado persistente está centralizado y no depende de App.jsx.
+
+ 5. ¿Por qué exportamos dos cosas?
+
+    export const useCarrito = () => { ... }
+    export const CarritoProvider = ({ children }) => { ... }
+
+    CarritoProvider: se usa una sola vez en App.jsx para envolver la app.
+    useCarrito: se usa en cualquier componente que necesite el carrito (Header, Cardprod, Offcanvas, etc.).
+
+
+
+
+✅ Resumen: ¿Qué ganamos con esto?
+
+Etapa 3.1 (con props)                                   Etapa 3.2(con context)
+---------------------------------------------------------------------------------------------
+El carrito vivía en App.jsx                         El carrito vive en CarritoContext
+
+Había que pasar carrito y funciones                 Cualquier componente accede directamente con useCarrito()
+como props a través de 3-4 componentes 
+
+Código repetitivo y difícil de escalar              Código limpio, modular y escalable
+
+App.jsx se volvía muy grande                        App.jsx se mantiene limpio; 
+                                                    la lógica del carrito está aislada
+
+
+“Context API no reemplaza useState ni useEffect.
+Simplemente organiza mejor el estado global para que sea accesible en toda la app, sin ensuciar el flujo de props.” 
+
+
+
+Paso 2: Envolver la app con CarritoProvider
+
+    // src/App.jsx
+    import { BrowserRouter } from 'react-router-dom';
+    import { CarritoProvider } from './context/CarritoContext'; // 👈
+
+    import Header from './components/Header';
+    import Footer from './components/Footer';
+    // ... otros imports
+
+    const App = () => {
+    // ... tu lógica de darkMode (sin carrito aquí)
+
+    return (
+        <CarritoProvider> {/* 👈 Envuelve TODO */}
+        <BrowserRouter>
+            <div className="app">
+            <Header darkMode={darkMode} toggleTheme={toggleTheme} />
+            {/* Routes */}
+            <Footer />
+            </div>
+        </BrowserRouter>
+        </CarritoProvider>
+    );
+    };
+
+    export default App;
+
+ Paso 3: Usar el contexto en los componentes
+
+    // src/components/Header.jsx
+    import { useCarrito } from '../context/CarritoContext'; // 👈
+
+    const Header = ({ darkMode, toggleTheme }) => {
+        const { carrito } = useCarrito(); // 👈
+
+        return (
+            <nav>...</nav>
+            
+            {carrito.length > 0 && (
+            <button className="btn btn-outline-primary ms-2">
+                🛒 Carrito ({carrito.length})
+            </button>
+            )}
+
+            {/* Offcanvas aquí también usará useCarrito() */}
+        );
+    };
