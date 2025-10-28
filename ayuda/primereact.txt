@@ -1,0 +1,19 @@
+ 1) Instalkacion de primereact y primeicons
+ 
+    npm install primereact primeicons
+
+2) Configuracion en main.jsx
+    import 'primereact/resources/themes/lara-light-cyan/theme.css';
+    import 'primereact/resources/primereact.min.css';
+    import 'primeicons/primeicons.css';
+
+
+Datatables
+    1) crear la tabla
+    2) los Templates
+    3) Tamaños
+    4) css propio
+    5) paginador
+    6) Ordenamiento
+    7) pre ordenamiento sortField="stock" sortOrder={-1} // -1 de mayor a menor / 1 de menor a mayor 
+    8) filtros
