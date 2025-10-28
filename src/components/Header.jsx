@@ -4,10 +4,9 @@ import { Link, useNavigate } from "react-router-dom"
 import { FaSun, FaMoon } from 'react-icons/fa'
 import { useState } from "react";
 import FiltroCategorias from "./Filtrocategorias";
-import CarritoOffcanvas from "./CarritoOffcanvas";
+
 import { FaTable } from "react-icons/fa";
 
-import { FaShoppingCart } from "react-icons/fa";
 import CarritoModal from "./CarritoModal";
 const Header = ({ darkMode, toggleTheme }) => {
 
@@ -66,16 +65,14 @@ const Header = ({ darkMode, toggleTheme }) => {
                             <li className="nav-item">
                                 <Link to={'/tablas'} className="nav-link" href="#">Tablas</Link>
                             </li>
-                            <li className="nav-item dropdown">
-                                <a className="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    Resumen
-                                </a>
-                                <ul className="dropdown-menu">
-                                    <li><Link to={'/resumen'} className="dropdown-item" href="#">Resumen</Link></li>
-                                    <li><Link to={'/autoevaluacion'} className="dropdown-item" href="#">Autoevaluacion</Link></li>
-                                    <li><Link to={'/glosario'} className="dropdown-item" href="#">Glosario</Link></li>
-                                </ul>
+
+                             <li className="nav-item">
+                                <Link to={'/context'} className="nav-link" href="#">Context</Link>
                             </li>
+                             <li className="nav-item">
+                                <Link to={'/datatable'} className="nav-link" href="#">Datatable</Link>
+                            </li>
+
 
                         </ul>
                         <form className="d-flex" role="search" onSubmit={manejoEnvio}>
@@ -99,7 +96,7 @@ const Header = ({ darkMode, toggleTheme }) => {
                 {carrito.length > 0 && (
                     <button 
                         type="button" 
-                        class="btn btn-outline-warning me-2"
+                        className="btn btn-outline-warning me-2"
                         data-bs-toggle="modal"
                          data-bs-target="#carritoModal">
                             <div className="d-flex justify-content-between align-items-center gap-2">
@@ -109,23 +106,13 @@ const Header = ({ darkMode, toggleTheme }) => {
                 )}
 
 
-                {carrito.length > 0 && (
-                    <button
-                        className="btn btn-outline-warning me-2"
-                        type="button" data-bs-toggle="offcanvas"
-                        data-bs-target="#offcanvasRight"
-                        aria-controls="offcanvasRight">
-                        <div className="d-flex justify-content-between align-items-center gap-2">
-                            <FaShoppingCart />  <span className="badge bg-danger m-1">{carrito.length}</span>
-                        </div>
-                    </button>
-                )}
+       
 
 
 
             </nav>
 
-            <CarritoOffcanvas />
+       
             <CarritoModal />
         </>
 

@@ -1,40 +1,46 @@
-import { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from 'react'
+import { DataTable } from 'primereact/datatable';
+import { Column } from 'primereact/column';
+import { formatCurrency, formatNumber } from '../util/funciones';
+import { Rating } from 'primereact/rating';
+import { SelectButton } from 'primereact/selectbutton';
+import { FilterMatchMode } from 'primereact/api'; // Asegúrate de importar esto
+import { InputText } from 'primereact/inputtext';
+import { IconField } from 'primereact/iconfield';
+import { InputIcon } from 'primereact/inputicon';
 
-import {
-    FaSort,
-    FaSortUp,
-    FaSortDown,
-    FaAngleDoubleLeft,
-    FaAngleLeft,
-    FaAngleRight,
-    FaAngleDoubleRight,
-    FaEye,
-    FaInfoCircle,
-
-} from 'react-icons/fa';
-import Cardprod from "../components/Cardprod";
-import { Link } from "react-router-dom";
-import ModalProd from "../components/ModalProd";
+import { Dropdown } from 'primereact/dropdown';
+import { Card } from 'primereact/card';
+import { InputNumber } from 'primereact/inputnumber';
 const API = 'https://dummyjson.com/products?limit=300';
-
 const Tablas = () => {
     const [datos, setDatos] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    //filtros con input
-    const [searchTerm, setSearchTerm] = useState('');
+    const [globalTotals, setGlobalTotals] = useState({});
 
-    // ordenamientos
-    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+    // cambio de tamaño de la tabla
+    const [sizeOptions] = useState([
+        { label: 'Pequeña', value: 'small' },
+        { label: 'Normal', value: 'normal' },
+        { label: 'Grande', value: 'large' }
+    ]);
+    const [size, setSize] = useState(sizeOptions[1].value);
 
-    // paginacion 
-    const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10; // Puedes cambiarlo a 20, 25, etc.
+    // filtros
+    const [globalFilterValue, setGlobalFilterValue] = useState('');
+    const [filters, setFilters] = useState({
 
+        global: { value: null, matchMode: FilterMatchMode.CONTAINS },
+        title: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
+        brand: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
+        category: { value: null, matchMode: FilterMatchMode.EQUALS }, // Se usa EQUALS para selección de categoría
+        price: { value: null, matchMode: FilterMatchMode.EQUALS },
+    });
 
-    // combo para filtrar por categorias
-    const [selectedCategory, setSelectedCategory] = useState('');
+    // Estado local para almacenar el valor seleccionado en el Dropdown de categoría
+    const [categoryFilter, setCategoryFilter] = useState(null);
 
 
     const getDatos = async () => {
@@ -56,193 +62,31 @@ const Tablas = () => {
         getDatos();
     }, []);
 
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchTerm]);
-
-    // filtro para titulo, marca y categoria
-    /*
-    const filteredData = datos.filter(item =>
-        (item.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (item.brand?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (item.category?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-
-    );
-*/
-    // este filtro se usara cuando se agregue el combo por categorias
-    const filteredData = useMemo(() => {
-        return datos.filter(item => {
-            const matchesSearch =
-                (item.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                (item.brand?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                (item.category?.toLowerCase() || '').includes(searchTerm.toLowerCase());
-
-            const matchesCategory = selectedCategory === '' || selectedCategory === 'Todas' || item.category === selectedCategory;
-
-            return matchesSearch && matchesCategory;
-        });
-    }, [datos, searchTerm, selectedCategory]);
-
-
-    // Resúmenes globales (asegurando que sean números)
-    const totalStock = filteredData.reduce((sum, item) => sum + Number(item.stock), 0);
-    const totalInventoryValue = filteredData.reduce((sum, item) => sum + Number(item.price) * Number(item.stock), 0);
-
-    // ordenamiento
-    const handleSort = (key) => {
-        let direction = 'asc';
-        if (sortConfig.key === key && sortConfig.direction === 'asc') {
-            direction = 'desc';
-        }
-        setSortConfig({ key, direction });
-    };
-
-    const sortedData = useMemo(() => {
-        if (!sortConfig.key) return filteredData;
-
-        return [...filteredData].sort((a, b) => {
-            const aValue = a[sortConfig.key];
-            const bValue = b[sortConfig.key];
-
-            if (aValue === bValue) return 0;
-
-            if (typeof aValue === 'string' && typeof bValue === 'string') {
-                return sortConfig.direction === 'asc'
-                    ? aValue.localeCompare(bValue, 'es', { numeric: true })
-                    : bValue.localeCompare(aValue, 'es', { numeric: true });
-            }
-
-            if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-            if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-            return 0;
-        });
-    }, [filteredData, sortConfig]);
-
-    // Después de sortedData
-    // Datos ya ordenados y filtrados
-    const paginatedData = useMemo(() => {
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        return sortedData.slice(startIndex, startIndex + itemsPerPage);
-    }, [sortedData, currentPage, itemsPerPage]);
-
-
-    // paginacion  despues de obtener sortedData 
-    const totalPages = Math.ceil(sortedData.length / itemsPerPage);
-    //Funciones de navegación
-    const goToPage = (page) => {
-        if (page >= 1 && page <= totalPages) {
-            setCurrentPage(page);
-        }
-    };
-
-    const nextPage = () => {
-        if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-    };
-
-    const prevPage = () => {
-        if (currentPage > 1) setCurrentPage(currentPage - 1);
-    };
-
-    const getPageNumbers = () => {
-        const delta = 2; // Cuántos botones a cada lado de la página actual
-        const range = [];
-        const rangeWithDots = [];
-
-        for (let i = Math.max(1, currentPage - delta); i <= Math.min(totalPages, currentPage + delta); i++) {
-            range.push(i);
-        }
-
-        if (range[0] > 1) {
-            rangeWithDots.push(1);
-            if (range[0] > 2) rangeWithDots.push('...');
-        }
-
-        rangeWithDots.push(...range);
-
-        if (range[range.length - 1] < totalPages) {
-            if (range[range.length - 1] < totalPages - 1) rangeWithDots.push('...');
-            rangeWithDots.push(totalPages);
-        }
-
-        return rangeWithDots;
-    };
-
-
-    // para el filtro con combo para categorias
+    // EXTRAER Y PREPARAR CATEGORÍAS con useMemo para el Dropdown
     const categories = useMemo(() => {
-        const cats = datos.map(item => item.category);
-        return ['Todas', ...new Set(cats)].sort(); // 'Todas' al inicio
+        // Obtenemos categorías únicas y las convertimos al formato { label: 'cat', value: 'cat' }
+        const cats = [...new Set(datos.map(p => p.category))];
+        return cats.sort().map(cat => ({ label: cat.toUpperCase(), value: cat }));
     }, [datos]);
 
 
-    // para el total
+    // totales para la estadistica
+    // ✅ NUEVO: CÁLCULO DE MÉTRICAS DE INVENTARIO USANDO REDUCE
+const totales = useMemo(() => {
+    return datos.reduce((acc, product) => ({
+        // Usamos la sintaxis de objeto conciso ({...})
+        totalStock: acc.totalStock + product.stock,
+        totalInventoryValue: acc.totalInventoryValue + (product.price * product.stock),
+    }), {
+        // Inicialización del acumulador (acc)
+        totalStock: 0,
+        totalInventoryValue: 0,
+    });
+}, [datos]);
 
-    const categorySummary = useMemo(() => {
-        const summary = {};
-        datos.forEach(item => {
-            if (!summary[item.category]) {
-                summary[item.category] = {
-                    category: item.category,
-                    productCount: 0,
-                    totalStock: 0,
-                    totalValue: 0,
-                    percent: 0
-                };
-            }
-            summary[item.category].productCount += 1;
-            summary[item.category].totalStock += Number(item.stock);
-            summary[item.category].totalValue += Number(item.price) * Number(item.stock);
-        });
 
-        const totalValue = Object.values(summary).reduce((acc, cat) => acc + cat.totalValue, 0);
 
-        Object.values(summary).forEach(cat => {
-            cat.percent = (cat.totalValue / totalValue) * 100;
-        });
 
-        return Object.values(summary).sort((a, b) => a.category.localeCompare(b.category));
-    }, [datos]);
-
-    const formatCurrency = (value) => {
-        const numericValue = Number(value);
-
-        if (isNaN(numericValue)) {
-            return '0,00';
-        }
-
-        // Forzar formato con separador de miles siempre
-        const parts = numericValue.toFixed(2).split('.');
-        const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        const decimalPart = parts[1];
-
-        return `${integerPart},${decimalPart}`;
-    };
-    const formatNumber = (value) => {
-        const numericValue = Number(value);
-
-        if (isNaN(numericValue)) {
-            return '0';
-        }
-
-        // Formato sin decimales
-        const integerValue = Math.round(numericValue);
-        return integerValue.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    };
-
-    // Totales GLOBALES (sin filtros, para el modal)
-    const globalTotals = useMemo(() => {
-        let productCount = 0;
-        let totalStock = 0;
-        let totalValue = 0;
-
-        datos.forEach(item => {
-            productCount++;
-            totalStock += Number(item.stock);
-            totalValue += Number(item.price) * Number(item.stock);
-        });
-
-        return { productCount, totalStock, totalValue };
-    }, [datos]);
 
     if (loading) {
         return (
@@ -250,252 +94,209 @@ const Tablas = () => {
                 <div className="spinner-border text-primary" role="status">
                     <span className="visually-hidden">Loading...</span>
                 </div>
-                <p>Cargando Productos...</p>
+                <p>Cargando Personajes...</p>
             </div>
         );
     }
-
     if (error) {
         return (
             <div className="text-center py-5 text-danger">
-                <h4>Error al cargar los Productos</h4>
+                <h4>Error al cargar los Personajes</h4>
                 <p>{error}</p>
             </div>
         );
     }
+
+
+    // templates
+    const imageBodyTemplate = (product) => {
+        return <img src={product.thumbnail} alt={product.title} className="img-fluid " width={80} />;
+    };
+    const subtotalTemplate = (product) => {
+        return formatCurrency(product.price * product.stock);
+    };
+    const ratingBodyTemplate = (product) => {
+        return <Rating value={product.rating} readOnly cancel={false} />;
+    };
+    const getSeverity = (stock) => {
+        if (stock > 50) return 'success';    // verde
+        else if (stock > 10 && stock <= 50) return 'warning';  // amarillo
+        else if (stock <= 10) return 'danger';   // rojo
+        return null;
+    };
+
+    // Plantilla para la columna que muestra indicador color según stock
+    const stockSeverityTemplate = (rowData) => {
+        const severity = getSeverity(rowData.stock);
+        return (
+            <span className={`badge bg-${severity}`}>
+                {rowData.stock}
+            </span>
+        );
+    };
+
+
+    // 2. FUNCIÓN PARA EL FILTRO DE CATEGORÍA
+    const onCategoryFilterChange = (value) => {
+        setCategoryFilter(value); // Actualiza el estado local del Dropdown
+
+        let _filters = { ...filters };
+        // 3. Aplica el valor al filtro de categoría (clave: 'category')
+        _filters['category'].value = value;
+
+        setFilters(_filters); // Actualiza los filtros de la DataTable
+    };
+
+
+    // filtros
+    const onGlobalFilterChange = (e) => {
+        const value = e.target.value;
+        let _filters = { ...filters };
+
+        _filters['global'].value = value;
+
+        setFilters(_filters);
+        setGlobalFilterValue(value);
+    };
+
+
+
+    const textEditor = (options) => {
+        return (
+            <InputNumber
+                value={options.value}
+                onValueChange={(e) => options.editorCallback(e.value)}
+                mode="decimal"
+                showButtons
+                min={0}
+            />
+        );
+    };
+
+    const onRowEditComplete = (e) => {
+        let _datos = [...datos];
+        let { newData, index } = e;
+
+        const payload = {
+            id: newData.id,
+            title: newData.title,
+            stock: newData.stock,
+            price: newData.price
+        };
+
+        // 1. SIMULACIÓN: Mostrar los datos que se enviarían al backend
+        console.log("--- Simulación de envío al Backend ---");
+        console.log(`Enviando actualización para el producto ID: ${newData.id}`);
+        console.log("Nuevos datos:", payload);
+
+
+    };
     return (
-        <div className="container">
-            <h4 className="text-center py-4">Lista de Productos</h4>
-            <div className="text-end my-3">
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal">
-                    Total por Categorias
-                </button>
-            </div>
-
-            <div className="row ">
-                <div className="col-md-6">
-                    <div className="d-flex justify-content-between">
-                        <nav>
-                            <ul className="pagination">
-                                <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
-                                    <button className="page-link" onClick={() => goToPage(1)} disabled={currentPage === 1}>
-                                        <FaAngleDoubleLeft />
-                                    </button>
-                                </li>
-                                <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
-                                    <button className="page-link" onClick={prevPage} disabled={currentPage === 1}>
-                                        <FaAngleLeft />
-                                    </button>
-                                </li>
-
-                                {getPageNumbers().map((pageNum, index) => (
-                                    <li
-                                        key={index}
-                                        className={`page-item ${pageNum === currentPage ? 'active' : ''} ${pageNum === '...' ? 'disabled' : ''
-                                            }`}
-                                    >
-                                        {pageNum === '...' ? (
-                                            <span className="page-link">...</span>
-                                        ) : (
-                                            <button
-                                                className="page-link"
-                                                onClick={() => goToPage(pageNum)}
-                                            >
-                                                {pageNum}
-                                            </button>
-                                        )}
-                                    </li>
-                                ))}
-
-                                <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
-                                    <button className="page-link" onClick={nextPage} disabled={currentPage === totalPages}>
-                                        <FaAngleRight />
-                                    </button>
-                                </li>
-                                <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
-                                    <button
-                                        className="page-link"
-                                        onClick={() => goToPage(totalPages)}
-                                        disabled={currentPage === totalPages}
-                                    >
-                                        <FaAngleDoubleRight />
-                                    </button>
-                                </li>
-                            </ul>
-                        </nav>
+        <div className="container-fluid">
+           
+            {/* Estadísticas Rápidas */}
+            <div className="row my-4">
+                <div className="col-md-3 mb-3">
+                    <div className="card border-0 bg-primary text-white">
+                        <div className="card-body text-center">
+                            <i className="pi pi-box fs-1 "></i>
+                            <h4 className="mt-2">{datos.length}</h4>
+                            <p className="mb-0">Total Productos</p>
+                        </div>
                     </div>
                 </div>
-                <div className="col-md-3">
-                    <select
-                        className="form-select"
-                        value={selectedCategory}
-                        onChange={(e) => setSelectedCategory(e.target.value)}
-                    >
-                        {categories.map((cat, index) => (
-                            <option key={index} value={cat === 'Todas' ? '' : cat}>
-                                {cat}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                <div className="col-md-3">
-                    <input
-                        type="text"
-                        className="form-control "
-                        placeholder="Buscar por nombre, marca o categoría..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-
-            </div>
-
-            <table className="table table-dark table-striped table-hover table-bordered">
-                <thead >
-                    <tr className="text-center ">
-                        <th scope="col">#</th>
-                        <th scope="col">Img</th>
-                        <th scope="col">Categoria</th>
-                        <th scope="col">Marca</th>
-                        <th scope="col" style={{ cursor: 'pointer' }} onClick={() => handleSort('title')}>
-                            Nombre
-                            {sortConfig.key === 'title' ? (
-                                sortConfig.direction === 'asc' ? <FaSortUp className="ms-1" /> : <FaSortDown className="ms-1" />
-                            ) : (
-                                <FaSort className="ms-1 text-muted" />
-                            )}
-                        </th>
-
-
-                        <th scope="col" style={{ cursor: 'pointer' }} onClick={() => handleSort('price')}>
-                            Precio
-                            {sortConfig.key === 'price' ? (
-                                sortConfig.direction === 'asc' ? <FaSortUp className="ms-1" /> : <FaSortDown className="ms-1" />
-                            ) : (
-                                <FaSort className="ms-1 text-muted" />
-                            )}
-                        </th>
-                        <th
-                            scope="col"
-                            className="text-center"
-                            style={{ cursor: 'pointer' }}
-                            onClick={() => handleSort('stock')}
-                        >
-                            Stock
-                            {sortConfig.key === 'stock' ? (
-                                sortConfig.direction === 'asc' ? <FaSortUp className="ms-1" /> : <FaSortDown className="ms-1" />
-                            ) : (
-                                <FaSort className="ms-1 text-muted" />
-                            )}
-                        </th>
-                        <th scope="col">Total</th>
-                        <th scope="col">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody className="table-group-divider">
-                    {paginatedData.map((item) => (
-
-                        <>
-                            <tr key={item.id}>
-                                <th scope="row">{item.id}</th>
-                                <td><img src={item.thumbnail} alt="" width={50} /></td>
-                                <td>{item.category}</td>
-                                <td>{item.brand}</td>
-                                <td>{item.title}</td>
-                                <td className="text-end">{formatCurrency(item.price)} </td>
-                                <td className="text-center">{formatNumber(item.stock)}</td>
-                                <td className="text-end">{formatCurrency(item.price * item.stock)}</td>
-                                <td className="text-center">
-                                    <Link to={`/detalle/${item.id}/${item.title}`} href="#"
-                                        className="btn btn-sm btn-outline-primary me-2"
-                                        title="Ver detalle"
-
-                                    >
-                                        <FaEye />
-                                    </Link>
-                                    <button
-                                        className="btn btn-sm btn-outline-secondary"
-                                        title="Más información"
-                                        data-bs-toggle="modal"
-                                        data-bs-target={`#modal-${item.id}`}
-                                    >
-                                        <FaInfoCircle />
-                                    </button>
-                                </td>
-
-                            </tr>
-                            <ModalProd item={item} />
-                        </>
-
-                    ))}
-                </tbody>
-                <tfoot>
-                    <tr className="table-light text-dark">
-                        <td colSpan="6" className="text-end fw-bold">Valor Total del Inventario:</td>
-                        <td className="text-center fw-bold">{formatNumber(totalStock)}</td>
-                        <td className="text-end fw-bold">{formatCurrency(totalInventoryValue)}</td>
-                        <td></td>
-                    </tr>
-                </tfoot>
-
-            </table>
-
-
-
-            <div className="modal fade" id="exampleModal" tabIndex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                <div className="modal-dialog modal-lg">
-                    <div className="modal-content">
-                        <div className="modal-header">
-                            <h1 className="modal-title fs-5" id="exampleModalLabel">Total por Categorias</h1>
-                            <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                <div className="col-md-3 mb-3">
+                    <div className="card border-0 bg-success text-white">
+                        <div className="card-body text-center">
+                            <i className="pi pi-chart-line fs-1 "></i>
+                            <h4 className="mt-2">{formatCurrency(totales.totalInventoryValue)}</h4>
+                            <p className="mb-0">Valor Inventario</p>
                         </div>
-                        <div className="modal-body">
-
-                            <table className="table table-sm table-bordered">
-                                <thead className="table-light">
-                                    <tr>
-                                        <th>Categoría</th>
-                                        <th className="text-center">Productos</th>
-                                        <th className="text-center">Stock Total</th>
-                                        <th className="text-end">Valor del Inventario</th>
-                                        <th className="text-end">%</th> {/* Nueva columna */}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {categorySummary.map((cat, index) => (
-                                        <tr key={index}>
-                                            <td><strong>{cat.category}</strong></td>
-                                            <td className="text-center">{cat.productCount}</td>
-                                            <td className="text-center">{formatNumber(cat.totalStock)}</td>
-                                            <td className="text-end">{formatCurrency(cat.totalValue)}</td>
-                                            <td className="text-end">{cat.percent.toFixed(2)}%</td> {/* Muestra porcentaje */}
-                                        </tr>
-                                    ))}
-                                </tbody>
-                                <tfoot className="table-light fw-bold">
-                                    <tr>
-                                        <td>Total General</td>
-                                        <td className="text-center">{globalTotals.productCount}</td>
-                                        <td className="text-center">{formatNumber(globalTotals.totalStock)}</td>
-                                        <td className="text-end">{formatCurrency(globalTotals.totalValue)}</td>
-                                        <td></td> {/* Columna % vacía para total */}
-                                    </tr>
-                                </tfoot>
-                            </table>
-
+                    </div>
+                </div>
+                <div className="col-md-3 mb-3">
+                    <div className="card border-0 bg-warning text-white">
+                        <div className="card-body text-center">
+                            <i className="pi pi-shopping-cart fs-1 "></i>
+                            <h4 className="mt-2">{formatNumber(totales.totalStock)}</h4>
+                            <p className="mb-0">Stock Total</p>
                         </div>
-                        <div className="modal-footer">
-                            <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    </div>
+                </div>
+                <div className="col-md-3 mb-3">
+                    <div className="card border-0 bg-info text-white">
+                        <div className="card-body text-center">
+                            <i className="pi pi-tags fs-1 "></i>
+                            <h4 className="mt-2">{categories.length}</h4>
+                            <p className="mb-0">Categorías</p>
                         </div>
                     </div>
                 </div>
             </div>
+             <h4 className="text-center py-4">Lista de Productos</h4>
+            <Card>
+                <div className='row '>
+                    <div className='col-md-4 '>
+                        <div className="d-flex justify-content-center mb-4">
+                            <SelectButton value={size} onChange={(e) => setSize(e.value)} options={sizeOptions} />
+                        </div>
+                    </div>
+                    <div className='col-md-4'>
+                        <Dropdown
+                            value={categoryFilter}
+                            onChange={(e) => onCategoryFilterChange(e.value)}
+                            options={categories}
+                            optionLabel="label"
+                            optionValue="value" // Indicamos que el valor seleccionado es el string de la categoría
+                            placeholder="Filtrar por categoría"
+                            className='w-100'
+                            showClear // Permite borrar la selección
+                        />
+                    </div>
+                    <div className='col-md-4 '>
+                        <div className="d-flex justify-content-end mb-2">
+                            <IconField iconPosition="left" className='w-100'>
+                                <InputIcon className="pi pi-search" />
+                                <InputText value={globalFilterValue} onChange={onGlobalFilterChange} className='w-100' placeholder="Buscar por nombre, categoria, precio, stock" />
+                            </IconField>
+                        </div>
+                    </div>
+
+                </div>
 
 
 
-
-
+                <DataTable value={datos}
+                    filters={filters}
+                    size={size}
+                    sortField="stock"
+                    sortOrder={-1} stripedRows
+                    paginator rows={5} rowsPerPageOptions={[5, 10, 25, 50]}
+                    editMode="row" // <-- CAMBIO: Edición de fila completa
+                    onRowEditComplete={onRowEditComplete}
+                >
+                    <Column field="id" header="ID" sortable></Column>
+                    <Column header="Image" body={imageBodyTemplate}></Column>
+                    <Column field="category" header="Categoria" sortable></Column>
+                    <Column field="title" header="Nombre" sortable></Column>
+                    <Column field="title" header="Estrellas" body={ratingBodyTemplate} ></Column>
+                    <Column header="Est" body={stockSeverityTemplate} />
+                    <Column
+                        field="stock"
+                        header="Stock"
+                        sortable
+                        body={(rowData) => formatNumber(rowData.stock)}
+                        className='text-center'
+                        editor={textEditor}></Column>
+                    <Column field="price" header="Precio" sortable body={(rowData) => formatCurrency(rowData.price)} className='text-end' editor={textEditor}></Column>
+                    <Column field="price" header="Precio" sortable body={subtotalTemplate} className='text-end'></Column>
+                    <Column
+                        rowEditor
+                        headerStyle={{ width: '10%', minWidth: '8rem' }}
+                        bodyStyle={{ textAlign: 'center' }}
+                    ></Column>
+                </DataTable>
+            </Card>
         </div>
     )
 }

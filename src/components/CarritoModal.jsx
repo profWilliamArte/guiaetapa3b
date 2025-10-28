@@ -31,7 +31,7 @@ const CarritoModal = () => {
                                 <p className="text-center">Tu carrito está vacío</p>
                             ) : (
                                 <>
-                                    <table className="table">
+                                    <table className="table table-hover">
                                         <thead>
                                             <tr className="text-center">
                                                 <th>#</th>
@@ -46,9 +46,9 @@ const CarritoModal = () => {
                                         <tbody>
                                             {carrito.map((item, index) => (
 
-                                                <>
-                                                    <tr>
-                                                        <th >{(index + 1)}</th>
+                                             
+                                                    <tr key={index}>
+                                                        <td >{(index + 1)}</td>
                                                         <td><img src={item.thumbnail} alt={item.title} className="img-fluid mb-2" width={50} /></td>
                                                         <td>{item.title}</td>
                                                         <td>{formatCurrency(item.price)}</td>
@@ -91,7 +91,7 @@ const CarritoModal = () => {
                                                     </tr>
 
 
-                                                </>
+                                              
 
 
 
@@ -102,7 +102,7 @@ const CarritoModal = () => {
                                             <tr>
                                                  <td colSpan="4" className="text-end">Total:</td>
                                                 <td className="text-center">{formatNumber(totalItems.toFixed(2))}</td>
-                                                <td className="text-end">{formatCurrency(total.toFixed(2))}</td>
+                                                <td className="text-end">${formatCurrency(total.toFixed(2))}</td>
                                                 <td ></td>
                                             </tr>
                                         </tfoot>
